@@ -1,0 +1,17 @@
+flowchart LR
+  %% STYLE DEFINITIONS
+  classDef step fill:#EDE7F6,stroke:#9575CD,color:#2C3E50,font-weight:bold,rx:8,ry:8;      %% Violet
+  classDef enrich fill:#D0F8CE,stroke:#66BB6A,color:#2C3E50,font-weight:bold,rx:8,ry:8;     %% Mint
+  classDef fraud fill:#FFF3E0,stroke:#FFA726,color:#2C3E50,font-weight:bold,rx:8,ry:8;      %% Peach
+  classDef export fill:#E1F5FE,stroke:#4FC3F7,color:#2C3E50,font-weight:bold,rx:8,ry:8;      %% Light Blue
+  classDef explore fill:#FFF9C4,stroke:#FDD835,color:#2C3E50,font-weight:bold,rx:8,ry:8;     %% Pastel Yellow
+
+  %% NODES
+  A["Raw Input<br>CSV from Kaggle"]:::step
+  B["Metadata Generation<br>Enrich entities & relations"]:::enrich
+  C["Fraud Pattern Injection<br>Simulate realistic threats"]:::fraud
+  D["Export to CSV<br>Prepare for Neo4j import"]:::export
+  E["Graph Exploration<br>Visual/Cypher queries"]:::explore
+
+  %% FLOW
+  A --> B --> C --> D --> E
