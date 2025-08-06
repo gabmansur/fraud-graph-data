@@ -139,18 +139,48 @@ If you want to visualize the graph:
 - Create interactive dashboard (e.g. Streamlit or Gradio)
 - Setup LFS for easier dataset sharing
 
-## FAQ
+## ❓FAQ
 
 **Q: Where’s the full dataset?**  
 A: Too big for GitHub! You’ll find the download link and setup info above.
 
 **Q: Why use Spark locally?**  
-A: It’s efficient, parallel, and you’ll thank me if you scale this later.
+A: It’s efficient, parallel, and you’ll thank me if you scale this later. It may seem like overkill for a small dataset, but Spark gives me scalable architecture if I want to plug in real financial data later. Plus, it's great for distributed joins and data enrichment.
 
-**Q: Can I use this as a base for my own fraud detection project?**  
+**Q: Can I use this as a base for my own fraud detection project?**   
 A: Yes! Just credit me (and the original dataset authors) if you publish it.
 
-**Q: Are Tom and Mia involved?**  
+**Q: Why did you choose a graph database instead of a relational one?**   
+A: Graphs are ideal for uncovering relationships, especially in fraud where links between people, accounts, devices, and companies reveal hidden clusters or patterns. A relational DB can store the data, but exploring connections like loops or shared entities would require complex joins. Neo4j makes that intuitive and visual.
+
+**Q: Why Neo4j specifically?**   
+A: Neo4j is optimized for fast traversal and relationship-first design. It also has a great developer experience, easy to load, query with Cypher, and visualize graphs in a way that makes patterns jump out. For a research prototype, it was perfect.
+
+**Q: Why not NetworkX or other Python graph libs?**   
+A: NetworkX is great for graph analysis in-memory, but it’s not optimized for large-scale persistent graph exploration. Neo4j lets me store the data, run Cypher queries, and visually explore fraud rings which is much more aligned with real-life investigations.
+
+**Q: Why didn’t you use machine learning for fraud detection?**   
+I intentionally focused on transparency and interpretability over predictive accuracy. In real-life fraud cases, explainability matters and investigators want to see why something looks suspicious. This project simulates known behaviors instead of relying on black-box models. But I do plan to add ML layers later as a comparison.
+
+**Q: Why Jupyter notebooks and not a proper Python module or CLI?**   
+A: Notebooks allow for clearer walkthroughs of the logic, especially when showcasing transformations, visualizing steps, and annotating thought processes. But the logic is modular enough that it could easily be converted to .py scripts or even an app later, I structured it with that in mind.
+
+**Q: How would you productionize this?**   
+A: For production, I’d move the enrichment logic into scheduled PySpark jobs, export the entities to a graph DB hosted in the cloud, and expose key fraud patterns through a dashboard (Streamlit or a proper frontend). Neo4j has enterprise options too, and could be swapped out with something like TigerGraph if scale demands.
+
+**Q: Aren’t these fraud patterns synthetic? How realistic are they?**   
+A: Yes, the patterns are synthetic, but they’re based on real fraud behaviors, like identity reuse, circular transactions, and mules. I chose patterns seen in the wild and injected them to make the dataset more investigative. It’s not meant to mimic every case, just to surface the kinds of behaviors fraud analysts look for.
+
+**Q: Could this be biased or unfair?**   
+A: In real-world systems, bias is a huge concern, especially if we assign risk scores or make decisions. This project is exploratory and transparent by design, with manually-injected patterns. It doesn’t label any user as “fraud”,  it simply highlights behaviors worth reviewing.
+
+**Q: What would you improve if you had more time?**   
+A: I’d add more fraud typologies, create a live dashboard with alerts, integrate a graph ML layer (e.g., node embeddings or link prediction), and refactor the logic into testable Python modules. Possibly even connect real anonymized data for validation...? Who knows
+
+**Q: What’s the coolest thing you discovered while building this?**   
+A: That even tinyyy changes in structure like a shared IP between two “unrelated” users can completely shift the graph layout and reveal hidden fraud rings. You feel the pattern, it’s incredibly visual and intuitive, which I didn’t expect to this degree!
+
+**Q: Are Tom and Mia involved?**   
 A: They supervised the testing phase and provided purring QA support. Also if you see typos or strange stuff, it's their keyboard walking routine.
 
 ## From the heart
