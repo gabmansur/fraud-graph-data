@@ -22,6 +22,9 @@ It’s part of my personal portfolio to showcase:
 ```
 fraud-graph-demo/
 │
+├── assets/
+│ ├── pipeline_flow.mmd # mermaid diagram
+│
 ├── data/
 │ ├── raw/ # Original input file (from Kaggle)
 │ └── processed/ # All generated node + edge CSVs
@@ -34,6 +37,8 @@ fraud-graph-demo/
 ├── neo4j/ # Cypher scripts to load + query graph
 │ ├── load.cypher
 │ └── queries.cypher
+│
+├── scripts/ # Same content as notebooks but as .py scripts
 │
 ├── streamlit_app/ (WIP/planned)
 ├── requirements.txt
