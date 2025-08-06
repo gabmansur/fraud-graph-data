@@ -1,0 +1,47 @@
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Environment and credentials
+.env
+*.env
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# MacOS/Linux/Windows system folders
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Icon?
+.idea/
+.vscode/
+
+# Raw data files (optional: only keep final CSVs)
+data/raw/
+*.zip
+*.tar.gz
+
+# Large datasets (like original PaySim full dataset if unused)
+data/large/
+
+# Misc
+*.bak
+*.tmp
+
+data/*.csv
+!data/processed/users_metadata.csv
+!data/processed/enriched_transactions.csv
