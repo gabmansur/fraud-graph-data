@@ -4,12 +4,15 @@ This is a research prototype designed for exploration, built around explainabili
 
 ## Why this project?
 
-In financial transactions, fraud rarely acts alone. It moves through *networks*.
+In financial transactions, fraud rarely acts alone. It moves through *networks*. Imagine this: 50 fake accounts, all tied to the same 10 phone numbers. Why? Because it’s the oldest trick in the book:"reuse, camouflage, confuse. One fraudster can pretend to be dozens of people, using the same IPs, employers, or devices.
 
-This prototype transforms transactional data into graph structures to surface:
-- Suspicious links between users or accounts
-- Identity reuse (phones, IPs, companies)
-- Fraud rings and dormant "mule" accounts
+
+This prototype turns plain transaction logs into a connected graph of people, companies, devices, and activity, then highlights suspicious patterns:
+
+- Shared identities (e.g. phones, IPs) between unrelated users
+- Money loops that simulate trust but actually obfuscate the origin
+- Dormant accounts activated only to receive transfers — possible money mules
+- Fake companies used to justify legitimacy
 
 It’s part of my personal portfolio to showcase:
 
@@ -17,6 +20,18 @@ It’s part of my personal portfolio to showcase:
 - Enriching raw data into typed entities and relationships
 - Neo4j as a tool for intuitive fraud investigation
 - Modular, interpretable code designed for insight
+
+### Why Graphs for Fraud?
+
+In a table, you see rows. In a graph, you see *structure*.
+
+Fraudulent behavior often hides in how entities are linked:
+
+- If 12 users share the same phone number: anomaly.
+- If account A sends to B and B sends back to A: money laundering loop.
+- If 40 employees all work for the same fake company: synthetic identity ring.
+
+Graph databases like Neo4j expose these patterns visually and computationally, without complicated joins - just paths, nodes, and relationships.
 
 ## Folder Structure
 ```
@@ -55,23 +70,27 @@ This project is based on the [Kaggle PaySim Dataset](https://www.kaggle.com/data
 
 ## Pipeline Flow
 
-1. **Raw Input**  
-   Load mobile transaction logs from `data/raw/`
+1. **Raw Input**
+   - Load transaction logs from CSV
 
-2. **Metadata Generation**  
-   Extract typed nodes and relationships from transactional data:
-   - People, phones, IPs, companies
-   - Links like `sent`, `logged_from`, `uses_phone`, `works_for`
+2. **Metadata Generation**
+   - Enrich each user with synthetic attributes: phone, IP, employer
+   - Create nodes and relationships: `Person`, `Phone`, `Company`, `IP`
+   - Define edges: `SENT`, `USES_PHONE`, `LOGGED_FROM`, `WORKS_FOR`
 
-3. **Fraud Pattern Injection (Optional)**  
-   Inject known suspicious behaviors (e.g. shared phones, fake orgs)
+3. **Fraud Pattern Injection (Optional)**
+   - Inject synthetic but realistic behaviors:
+     - Shared phones/IPs across unrelated accounts
+     - Money loops (e.g. A → B → A)
+     - Dormant receiver-only accounts (mules)
+     - Fake employer reuse
 
-4. **Export for Neo4j**  
-   Convert enriched entities into CSVs and load into Neo4j via `load.cypher`
+4. **Export to Neo4j**
+   - Generate CSVs for import
+   - Use `neo4j/load.cypher` to ingest into a Neo4j instance
 
-5. **Graph Exploration**  
-   Use `queries.cypher` to surface suspicious clusters and behavior
-
+5. **Graph Exploration**
+   - Query and explore patterns using `queries.cypher` or Neo4j Bloom
 
 ![Pipeline Diagram](assets/pipeline_flow.png)
 
@@ -99,7 +118,7 @@ We inject known behavioral patterns to simulate realistic threats:
 
 1. **Clone the repo and create your environment**
 ```bash
-git clone https://github.com/your-user/fraud-graph-demo
+git clone https://github.com/gabmansur/fraud-graph-demo
 cd fraud-graph-demo
 python -m venv .venv
 source .venv/bin/activate  # or .venv\Scripts\activate on Windows
@@ -117,12 +136,72 @@ The core logic lives inside three clean, easy-to-follow notebooks
 
 Just run them in order. Each cell is commented and modular.
 
-## 3. **Launch Neo4j (Optional)**
+3. **Launch Neo4j (Optional)**
 If you want to visualize the graph:
 
 - Start Neo4j locally (you can use Neo4j Desktop or Docker)
 - Use the neo4j/load.cypher script to ingest the graph
 - Explore patterns visually or run predefined queries in neo4j/queries.cypher
+
+## Use Case: detecting a Fraud Ring with Graph Analytics
+
+Imagine you're a data engineer at a financial institution reviewing new account registrations. You notice a spike in applications — all approved — but soon after, multiple chargebacks and suspicious behavior occur.
+
+You ask yourself:
+
+- Are these real people?
+- Are these independent users?
+- Or… is there a coordinated fraud ring slipping through?
+
+You decide to load the data into a graph database, connect the dots between users, phone numbers, IP addresses, and companies… and what you find will change how you see data forever.
+
+### Investigation Flow
+
+#### Phase 1: Map the Full Jungle
+Goal: Get the lay of the land.
+
+Key Questions:
+- Where are the dense clusters?
+- Are there isolated subgraphs?
+- Are some nodes overly connected (hubs)?
+- Is there one person using too many devices, or too many people using the same device?
+
+```
+MATCH (n)-[r]->(m)
+RETURN n, r, m
+LIMIT 5000
+```
+
+<img src="assets/jungle.png" alt="Zoomed Graph" width="500"/>
+<img src="assets/jungle_zoom.png" alt="Zoomed Graph" width="500"/>
+
+#### Phase 2: Investigate Identity Overlap via Phones
+Goal: Catch multiple people using the same phone; this is very unlikely in real life unless something shady is going on.
+
+Key Questions:
+- Are several people connected to the same phone number?
+- Could this indicate duplicate or fake accounts?
+- Is it possible that multiple identities were created using a single device?
+
+```
+MATCH (p1:Person)-[r1:USES_PHONE]->(ph:Phone)<-[r2:USES_PHONE]-(p2:Person)
+WHERE p1 <> p2
+RETURN p1, p2, ph, r1, r2
+```
+>This query finds people using the same phone — a typical pattern in fraud rings where the same burner phone is recycled.
+
+<img src="assets/phase2.png" alt="Phone overlap" width="500"/>
+<img src="assets/phase2_zoom.png" alt="Zoomed Phone overlap" width="300"/>
+
+💬 We found groups of individuals connected to the exact same phone number. While it could be explained by household sharing, this pattern starts to raise flags, especially when it's more than 2-3 people, or appears repeatedly across the graph.
+
+#### Phase 3: Strengthen the Case: Add IP Overlap
+Goal: Check if these same people also log in from the same IP addresses.
+
+Key Questions:
+- Are these users logging in from the same IP address?
+- Does the overlap in phones and IPs indicate coordinated identity use?
+- Is this beyond coincidence?
 
 ## What makes this project cool?
 
