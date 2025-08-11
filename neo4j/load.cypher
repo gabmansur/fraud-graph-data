@@ -50,4 +50,14 @@ MERGE (p)-[:USES_PHONE]->(ph);
 
 // Person -> IP
 LOAD CSV WITH HEADERS FROM 'https://raw.githubusercontent.com/gabmansur/fraud-graph-data/master/data/processed/relationships_logged_from.csv' AS row
-WITH row WHERE row.person_id IS NOT NULL AND ro_
+WITH row WHERE row.person_id IS NOT NULL AND row.person_id <> '' AND row.value IS NOT NULL AND row.value <> ''
+MATCH (p:Person {person_id: row.person_id})
+MERGE (ip:IP {value: row.value})
+MERGE (p)-[:LOGGED_FROM]->(ip);
+
+// Person -> Company
+LOAD CSV WITH HEADERS FROM 'https://raw.githubusercontent.com/gabmansur/fraud-graph-data/master/data/processed/relationships_works_for.csv' AS row
+WITH row WHERE row.person_id IS NOT NULL AND row.person_id <> '' AND row.company IS NOT NULL AND row.company <> ''
+MATCH (p:Person {person_id: row.person_id})
+MERGE (c:Company {name: row.company})
+MERGE (p)-[:WORKS_FOR]->(c);

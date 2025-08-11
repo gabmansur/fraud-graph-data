@@ -11,10 +11,10 @@
      B3. Example: top-degree People (hubs)
 
    C. Phase Queries
-     C1. Phase 1: Basic network (neighbors, ego nets)
-     C2. Phase 2: Shared Phone overlaps
-     C3. Phase 3: Shared IP overlaps
-     C4. Phone + IP conjunct overlap (stronger signal)
+     C1. Phase 1 - Map the Full Network
+     C2. Phase 2 - Check for Phone Overlap
+     C3. Phase 3 - Check for Phone + IP overlap
+     C4. Phase 4 - Ring Detection & Case Prioritization
 
    D. Fraud Patterns & Scores (starter set)
      D1. Short money loops (2–5 hops)
@@ -32,13 +32,11 @@
    A. SCHEMA & INDEXES
    =========================== */
 
-// A1. Constraints (idempotent)
-CREATE CONSTRAINT IF NOT EXISTS FOR (p:Person) REQUIRE p.person_id IS UNIQUE;
-CREATE CONSTRAINT IF NOT EXISTS FOR (ph:Phone)  REQUIRE ph.number   IS UNIQUE;
-CREATE CONSTRAINT IF NOT EXISTS FOR (ip:IP)     REQUIRE ip.value    IS UNIQUE;
-CREATE CONSTRAINT IF NOT EXISTS FOR (d:Device)  REQUIRE d.device_id IS UNIQUE;
-CREATE CONSTRAINT IF NOT EXISTS FOR (a:Account) REQUIRE a.account_id IS UNIQUE;
-CREATE CONSTRAINT IF NOT EXISTS FOR (tx:Txn)    REQUIRE tx.txn_id    IS UNIQUE;
+// A1. Constraints (idempotent) – align with load.cypher
+CREATE CONSTRAINT IF NOT EXISTS FOR (p:Person)  REQUIRE p.person_id IS UNIQUE;
+CREATE CONSTRAINT IF NOT EXISTS FOR (ph:Phone)  REQUIRE ph.number    IS UNIQUE;
+CREATE CONSTRAINT IF NOT EXISTS FOR (ip:IP)     REQUIRE ip.value     IS UNIQUE;
+CREATE CONSTRAINT IF NOT EXISTS FOR (c:Company) REQUIRE c.name       IS UNIQUE;
 
 // A2. Helpful indexes
 CREATE INDEX IF NOT EXISTS FOR (p:Person) ON (p.name);
@@ -51,25 +49,20 @@ CREATE INDEX IF NOT EXISTS FOR (ip:IP) ON (ip.last_seen);
    B. SANITY & EXPLORATION
    =========================== */
 
-// B1. Counts by label
-CALL db.labels() YIELD label
-CALL {
-  WITH label
-  RETURN label AS l, count(*) AS n
-  FROM (MATCH (n:`${label}`) RETURN n)
-}
-RETURN l AS label, n
-ORDER BY n DESC;
+// B1. Counts by label (explicit)
+RETURN
+  (MATCH (p:Person)  RETURN count(p))  AS persons,
+  (MATCH (ph:Phone)  RETURN count(ph)) AS phones,
+  (MATCH (ip:IP)     RETURN count(ip)) AS ips,
+  (MATCH (c:Company) RETURN count(c))  AS companies;
 
-// B2. Relationship counts by type
-CALL db.relationshipTypes() YIELD relationshipType AS type
-CALL {
-  WITH type
-  MATCH ()-[r:`${type}`]->()
-  RETURN count(r) AS n
-}
-RETURN type, n
-ORDER BY n DESC;
+// B2. Counts by relationship type (explicit)
+RETURN
+  (MATCH (:Person)-[r:SENT]->(:Person)        RETURN count(r)) AS sent_edges,
+  (MATCH (:Person)-[r:USES_PHONE]->(:Phone)   RETURN count(r)) AS phone_edges,
+  (MATCH (:Person)-[r:LOGGED_FROM]->(:IP)     RETURN count(r)) AS ip_edges,
+  (MATCH (:Person)-[r:WORKS_FOR]->(:Company)  RETURN count(r)) AS works_for_edges;
+
 
 // B3. Top-degree People (hubs)
 MATCH (p:Person)
@@ -82,48 +75,100 @@ LIMIT 20;
    C. PHASE QUERIES
    =========================== */
 
-// C1. Phase 1 – local neighborhood / ego-net (2 hops)
-MATCH (p:Person {person_id: "P-0001"})-[r*1..2]-(x)
-RETURN p, r, x;
+// C1. Phase 1 - Map the Full Network
+MATCH (n)-[r]->(m)
+RETURN n, r, m
+LIMIT 5000
 
-// C2. Phase 2 – shared Phone overlaps (unique pairs)
-MATCH (p1:Person)-[:USES_PHONE]->(ph:Phone)<-[:USES_PHONE]-(p2:Person)
-WHERE id(p1) < id(p2)
-RETURN ph.number AS phone, collect(p1.person_id) AS group1, collect(p2.person_id) AS group2, size(collect(p1))+size(collect(p2)) AS involved
-ORDER BY involved DESC
-LIMIT 50;
+// C2. Phase 2 - Check for Phone Overlap
+MATCH (p1:Person)-[r1:USES_PHONE]->(ph:Phone)<-[r2:USES_PHONE]-(p2:Person)
+WHERE p1 <> p2
+RETURN p1, p2, ph, r1, r2
 
-// Also as edge list of Person–Person overlap via Phone
-MATCH (p1:Person)-[:USES_PHONE]->(ph:Phone)<-[:USES_PHONE]-(p2:Person)
-WHERE id(p1) < id(p2)
-RETURN p1.person_id AS src, p2.person_id AS dst, "PHONE" AS reason, ph.number AS key
-ORDER BY src, dst;
+// C3. Phase 3 - Check for Phone + IP overlap
+MATCH (p:Person)-[:USES_PHONE]->(ph:Phone),
+      (p)-[:LOGGED_FROM]->(ip:IP)
+WITH ph.number AS phone,
+     ip.value  AS ip,
+     collect(DISTINCT p.person_id) AS people,
+     count(DISTINCT p) AS cnt
+WHERE phone IS NOT NULL AND phone <> ''
+  AND ip    IS NOT NULL AND ip    <> ''
+  AND cnt > 1
+RETURN phone, ip, cnt AS count, people
+ORDER BY count DESC
+LIMIT 5;
 
-// C3. Phase 3 – shared IP overlaps (unique pairs)
-MATCH (p1:Person)-[:LOGGED_FROM]->(ip:IP)<-[:LOGGED_FROM]-(p2:Person)
-WHERE id(p1) < id(p2)
-RETURN ip.value AS ip, collect(p1.person_id) AS group1, collect(p2.person_id) AS group2, size(collect(p1))+size(collect(p2)) AS involved
-ORDER BY involved DESC
-LIMIT 50;
+// C4. Phase 4 - Ring Detection & Case Prioritization
+// Phone+IP rings = groups of people sharing the same phone AND IP
 
-// Edge list for IP overlap
-MATCH (p1:Person)-[:LOGGED_FROM]->(ip:IP)<-[:LOGGED_FROM]-(p2:Person)
-WHERE id(p1) < id(p2)
-RETURN p1.person_id AS src, p2.person_id AS dst, "IP" AS reason, ip.value AS key
-ORDER BY src, dst;
+//Ring stats (total, largest, smallest, average)
+MATCH (p:Person)-[:USES_PHONE]->(ph:Phone),
+      (p)-[:LOGGED_FROM]->(ip:IP)
+WITH ph.number AS phone, ip.value AS ip, collect(DISTINCT p) AS people
+WHERE phone IS NOT NULL AND phone <> ''
+  AND ip    IS NOT NULL AND ip    <> ''
+  AND size(people) > 1
+WITH size(people) AS ring_size
+RETURN count(*)            AS total_rings,
+       max(ring_size)      AS largest_ring,
+       min(ring_size)      AS smallest_ring,
+       round(avg(ring_size), 2) AS avg_ring_size;
 
-// C4. Stronger signal – shared Phone AND shared IP
-MATCH (p1:Person)-[:USES_PHONE]->(ph:Phone)<-[:USES_PHONE]-(p2:Person),
-      (p1)-[:LOGGED_FROM]->(ip:IP)<-[:LOGGED_FROM]-(p2:Person)
-WHERE id(p1) < id(p2)
-RETURN p1.person_id AS p_left, p2.person_id AS p_right, ph.number AS phone, ip.value AS ip
-ORDER BY p_left, p_right
-LIMIT 100;
+// Multi-ring members (how many people appear in more than one ring)
+MATCH (p:Person)-[:USES_PHONE]->(ph:Phone),
+      (p)-[:LOGGED_FROM]->(ip:IP)
+WITH p, ph.number AS phone, ip.value AS ip
+WHERE phone IS NOT NULL AND phone <> ''
+  AND ip    IS NOT NULL AND ip    <> ''
+WITH p, collect(DISTINCT phone + '|' + ip) AS combos
+WHERE size(combos) > 1
+RETURN count(*) AS multi_ring_members;
+
+// to see who they are, run:
+MATCH (p:Person)-[:USES_PHONE]->(ph:Phone),
+      (p)-[:LOGGED_FROM]->(ip:IP)
+WITH p, ph.number AS phone, ip.value AS ip
+WHERE phone IS NOT NULL AND phone <> ''
+  AND ip    IS NOT NULL AND ip    <> ''
+WITH p, collect(DISTINCT phone + '|' + ip) AS combos
+WHERE size(combos) > 1
+RETURN coalesce(p.person_id, elementId(p)) AS person,
+       size(combos) AS rings_involved,
+       combos
+ORDER BY rings_involved DESC, person
+LIMIT 25;
+
+// Ring size distribution (for a quick histogram-style view)
+MATCH (p:Person)-[:USES_PHONE]->(ph:Phone),
+      (p)-[:LOGGED_FROM]->(ip:IP)
+WITH ph.number AS phone, ip.value AS ip, collect(DISTINCT p) AS people
+WHERE phone IS NOT NULL AND phone <> ''
+  AND ip    IS NOT NULL AND ip    <> ''
+  AND size(people) > 1
+WITH size(people) AS ring_size
+RETURN ring_size, count(*) AS rings
+ORDER BY ring_size DESC;
+
+// The ring list itself (to sanity-check the counts)
+MATCH (p:Person)-[:USES_PHONE]->(ph:Phone),
+      (p)-[:LOGGED_FROM]->(ip:IP)
+WITH ph.number AS phone, ip.value AS ip, collect(DISTINCT p) AS people
+WHERE phone IS NOT NULL AND phone <> ''
+  AND ip    IS NOT NULL AND ip    <> ''
+  AND size(people) > 1
+RETURN phone,
+       ip,
+       size(people) AS ring_size,
+       [x IN people | coalesce(x.person_id, elementId(x))] AS members
+ORDER BY ring_size DESC, phone, ip;
 
 
 /* ===========================
    D. FRAUD PATTERNS & SCORES
    =========================== */
+
+/*
 
 // D1. Short loops (2..5 hops) returning to same account
 MATCH p = (a:Account)-[:SENT*2..5]->(a)
@@ -182,6 +227,7 @@ RETURN person, risk
 ORDER BY risk DESC
 LIMIT 50;
 
+*/
 
 /* ===========================
    E. MAINTENANCE / UTILITIES
