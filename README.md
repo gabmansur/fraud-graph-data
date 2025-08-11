@@ -439,16 +439,6 @@ Key questions:
 - What is the size distribution of these clusters?
 - Which cluster should we triage first?
 
-**What we found**
-
-Running the grouping queries revealed:
-
-- Total rings detected: 8
-- Largest ring size: 5 people sharing the same phone + IP
-- Smallest ring size: 2 people
-- Average ring size: ~3 people
-- Multi-ring members: 2 individuals appeared in more than one ring (possible brokers/mules connecting groups)
-
 **Why this matters**
 
 Rather than chasing down dozens of isolated overlaps, Phase 4 reduces the workload by:
