@@ -125,20 +125,20 @@ LIMIT 100;
    D. FRAUD PATTERNS & SCORES
    =========================== */
 
-// D1. Short loops (2..5 hops) returning to same account (time window optional)
-MATCH p = (a:Account)-[:SENT_TO*2..5]->(a)
+// D1. Short loops (2..5 hops) returning to same account
+MATCH p = (a:Account)-[:SENT*2..5]->(a)
 WHERE ALL(rel IN relationships(p) WHERE rel.amount > 0)
 RETURN a.account_id AS anchor, length(p) AS hops, relationships(p) AS edges
 LIMIT 50;
 
-// If you store timestamps on SENT_TO, you can constrain within N days (file-safe)
-MATCH p = (a:Account)-[r:SENT_TO*2..5]->(a)
+// D1. Short loops (2..5 hops) returning to same account
+MATCH p = (a:Account)-[:SENT*2..5]->(a)
 WHERE ALL(rel IN r WHERE rel.amount > 0 AND rel.timestamp >= datetime() - duration('P7D'))
 RETURN a.account_id AS anchor, length(p) AS hops, r
 LIMIT 50;
 
-// D2. Fan-in/Fan-out anomalies (simple thresholds)
-MATCH (a:Account)<-[t:SENT_TO]-()
+// D2. Fan-in/Fan-out anomalies
+MATCH (a:Account)<-[t:SENT]-()
 WITH a, count(t) AS fan_in, sum(t.amount) AS in_amt
 ORDER BY fan_in DESC
 LIMIT 50
