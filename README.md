@@ -1,6 +1,12 @@
-# Fraud Graph Data
-A lightweight, high-performance pipeline for graph-based fraud detection, clean, local, and focused on transparency.  
-This is a research prototype designed for exploration, built around explainability and creative thinking.
+# Fraud Graph Data - Detecting Hidden Networks in Financial Transactions
+
+A pipeline for graph-based fraud detection, clean, local, and focused on transparency. This is a research prototype designed for exploration, built around explainability and creative thinking, showing how phone numbers, IP addresses, accounts, and entities can be linked to uncover hidden fraud rings that traditional approaches often miss.
+
+Inspired by [Neo4j’s Enterprise Fraud Detection](https://neo4j.com/blog/fraud-detection/enterprise-fraud-detection/), the project uses synthetic data to explore detection phases, ring analysis, and visual investigation.
+
+<img src="assets/fraud_detection_example.png" alt="Fraud detection network example" width="500"/>
+
+<sub>Source: [Neo4j Enterprise Fraud Detection](https://neo4j.com/blog/fraud-detection/enterprise-fraud-detection/)</sub>
 
 ## Table of Contents
 1. [Why this project?](#why-this-project)
