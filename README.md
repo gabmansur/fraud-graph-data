@@ -165,6 +165,7 @@ cd fraud-graph-data
 python -m venv .venv
 source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 pip install -r requirements.txt
+# Copy .env.example to .env and fill in your Neo4j credentials (see section: Environment file).
 ```
 
 2. **Open the Notebooks**
@@ -178,7 +179,7 @@ The core logic lives inside three clean, easy-to-follow notebooks
 | `03_export_for_neo4j.ipynb`      | Converts the graph into CSV files compatible with Neo4j’s `LOAD CSV` Cypher command.                                     |
 | `04_analyze_graph.ipynb` | Optional QA. Validates shared phones/IPs and phone+IP pairs with pandas, and exports the "Top 5 phone+IP overlaps" table used in Phase 3. |
 
-Run 01 → 02 → 03 → 04 in order. Each cell is commented and modular. Neo4j’s `neo4j/load.cypher`
+Run 01 → 02 → 03. Optionally run 04 for QA and exporting the Phase 3 table. Each cell is commented and modular. The CSVs in `data/processed/` are then loaded via `neo4j/load.cypher`.
 
 3. **Launch Neo4j (Optional)**
 
@@ -209,7 +210,7 @@ python neo4j/load_graph.py neo4j/queries.cypher  # runs the query catalog
 
 The loader reads the Cypher file, splits on semicolons, skips comments, and runs each statement inside a write transaction, so multi-statement imports work as-is.
 
-4. **Query Catalogue**
+4. **Query Catalog**
 
 All Cypher queries for analysis, pattern detection, and graph maintenance are stored in neo4j/queries.cypher. They are grouped into clearly labeled sections for quick reference:
 
